@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Arduino AVR Web Flasher v1.0</title>
+<style>
+  :root {
+    --bg: #e6f2fb; --panel: #f6fbff; --panel-2: #dcecf9; --border: #b9d8ef;
+    --text: #1c2b3a; --text-dim: #4d6478;
+    --accent: #d4af37; --accent-dim: #a8842a;
+    --ok: #1a7f37; --err: #cf222e; --warn: #b8860b;
+    --mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; min-height: 100vh; }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 28px 18px 60px; }
+  header { margin-bottom: 22px; }
+  header .eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: .12em; color: #000; font-weight: 700; text-transform: uppercase; }
+  h1 { margin: 4px 0 6px; font-size: 26px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .gold-outline { color: var(--accent); -webkit-text-stroke: 0.6px #000; text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000; }
+  .version-tag { font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--accent); background: var(--panel); border: 1px solid var(--accent-dim); border-radius: 999px; padding: 3px 10px; }
+  header p { color: #000; margin: 0; font-size: 14px; }
+  .author-line { margin-top: 6px !important; font-size: 12.5px !important; font-weight: 600; color: var(--accent) !important; }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 18px; margin-bottom: 16px; }
+  .panel h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-dim); margin: 0 0 14px; font-weight: 600; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  button { font-family: inherit; font-size: 14px; font-weight: 600; border-radius: 7px; border: 1px solid var(--border); background: var(--panel-2); color: var(--text); padding: 10px 16px; cursor: pointer; transition: border-color .15s, background .15s; }
+  button:hover:not(:disabled) { border-color: var(--accent-dim); }
+  button:disabled { opacity: .4; cursor: not-allowed; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #1a0f00; }
+  button.primary:hover:not(:disabled) { background: #e6c25f; }
+  button.small { padding: 6px 10px; font-size: 12px; }
+  select, input[type=text] { font-family: var(--mono); background: var(--panel-2); border: 1px solid var(--border); color: var(--text); border-radius: 7px; padding: 9px 10px; font-size: 13px; }
+  label.field { display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: var(--text-dim); }
+  input[type=file] { font-family: var(--mono); font-size: 13px; color: var(--text-dim); }
+  .status-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--text-dim); display: inline-block; }
+  .status-dot.connected { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+  .status-line { display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 13px; color: var(--text-dim); flex-wrap: wrap; }
+  .progress-bar-bg { height: 10px; border-radius: 5px; background: var(--panel-2); overflow: hidden; margin-top: 10px; }
+  .progress-bar-fill { height: 100%; width: 0%; background: var(--accent); transition: width .15s; }
+  #terminal { background: #05070a; border: 1px solid var(--border); border-radius: 8px; font-family: var(--mono); font-size: 12.5px; line-height: 1.5; padding: 12px; height: 240px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; color: #b6f0c1; }
+  #terminal .err { color: #ff8a80; }
+  .footer-note { color: #000; font-size: 12px; margin-top: 18px; line-height: 1.6; }
+  .footer-note a { color: var(--accent-dim); font-weight: 700; text-decoration: underline; }
+  .unsupported { background: #fdf2f1; border: 1px solid #e5b3ae; color: #9a2f28; padding: 14px 16px; border-radius: 8px; font-size: 14px; margin-bottom: 16px; }
+  .warn-box { background: #fdf6e3; border: 1px solid #e4cd82; color: #7a5d00; padding: 12px 14px; border-radius: 8px; font-size: 12.5px; margin-top: 10px; line-height: 1.6; }
+  @media (max-width: 640px) {
+    .wrap { padding: 18px 12px 40px; }
+    h1 { font-size: 21px; }
+    .panel { padding: 14px; }
+    .row { flex-direction: column; align-items: stretch; }
+    .row > button { width: 100%; }
+    label.field { width: 100%; }
+    label.field select { width: 100%; }
+    #terminal { height: 190px; font-size: 11.5px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">WEBSERIAL &middot; STK500 PROTOCOL &middot; BROWSER-ONLY FLASHER</div>
+    <h1><span class="gold-outline">Arduino AVR Web Flasher</span> <span class="version-tag">v1.0</span></h1>
+    <p>อัปโหลดไฟล์ .hex ให้ Arduino Uno / Nano / Pro Mini / Mega2560 ผ่าน USB ตรงจากเบราว์เซอร์</p>
+    <p class="author-line">พัฒนาโดย Thanee Kongkrapun</p>
+  </header>
+
+  <div id="unsupportedBox" class="unsupported" style="display:none;"></div>
+
+  <div class="panel">
+    <h2>1. เลือกบอร์ด &amp; เชื่อมต่อ</h2>
+    <div class="row">
+      <label class="field">
+        รุ่นบอร์ด
+        <select id="boardType">
+          <option value="uno328p_115200" selected>Arduino Uno / Nano (bootloader ใหม่) — 115200</option>
+          <option value="uno328p_57600">Arduino Nano (bootloader เก่า) / Pro Mini — 57600</option>
+          <option value="mega2560">Arduino Mega 2560 — 115200 (ทดลอง)</option>
+        </select>
+      </label>
+      <button id="btnConnect" class="primary">เลือกพอร์ต &amp; เชื่อมต่อ</button>
+      <button id="btnDisconnect" disabled>ตัดการเชื่อมต่อ</button>
+    </div>
+    <div class="status-line" style="margin-top:12px;">
+      <span id="statusDot" class="status-dot"></span>
+      <span id="statusText">ยังไม่ได้เชื่อมต่อ</span>
+    </div>
+    <div id="megaWarn" class="warn-box" style="display:none;">
+      ⚠️ Mega2560 ใช้โปรโตคอล STK500v2 ซึ่งซับซ้อนกว่าและทดสอบมาน้อยกว่ากลุ่ม Uno/Nano
+      ถ้าเชื่อมต่อหรือ flash ไม่สำเร็จ ให้ลองใช้ Arduino IDE อัปโหลดแทนไปพลางก่อน แล้วส่ง log
+      ในกล่องด้านล่างมาให้ช่วยตรวจได้
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>2. เลือกไฟล์ .hex</h2>
+    <div class="row">
+      <input type="file" id="fileHex" accept=".hex" />
+    </div>
+    <p style="font-size:12px;color:var(--text-dim);margin:10px 0 0;">
+      ต้องเป็นไฟล์ <strong>.hex ที่ compile แล้ว</strong> (ไม่ใช่ไฟล์ .ino) — ได้จาก Arduino IDE:
+      เมนู <strong>Sketch → Export Compiled Binary</strong> จะได้ไฟล์ .hex อยู่ในโฟลเดอร์เดียวกับ sketch
+    </p>
+    <div class="row" style="margin-top:14px;">
+      <button id="btnFlash" class="primary" disabled>เริ่ม Flash</button>
+      <button id="btnReset" disabled>รีเซ็ตบอร์ด</button>
+    </div>
+    <div class="progress-bar-bg"><div id="progressFill" class="progress-bar-fill"></div></div>
+    <div id="progressLabel" style="font-size:12px;color:var(--text-dim);margin-top:6px;"></div>
+  </div>
+
+  <div class="panel">
+    <h2>3. Log</h2>
+    <div id="terminal"></div>
+    <div class="row" style="margin-top:10px;">
+      <button id="btnClearLog" class="small">ล้าง log</button>
+    </div>
+  </div>
+
+  <p class="footer-note">
+    Arduino AVR Web Flasher v1.0 &middot; พัฒนาโดย Thanee Kongkrapun<br>
+    ใช้โปรโตคอล STK500v1/v2 ผ่าน Web Serial API เขียนขึ้นเองตามสเปกสาธารณะของ Atmel/Arduino
+    ไม่มีการอัปโหลดไฟล์ .hex ไปเซิร์ฟเวอร์ใด ๆ ทุกอย่างเกิดขึ้นในเบราว์เซอร์เครื่องนี้เท่านั้น
+    ต้องเปิดผ่าน <strong>https://</strong> (หรือ localhost) ด้วย <strong>Chrome / Edge บนคอมพิวเตอร์</strong>
+    <br><strong>ยังไม่รองรับ:</strong> Arduino Leonardo/Micro/32u4 (bootloader คนละแบบ), Arduino UNO R4,
+    Nano 33/Every/BLE, Due, Portenta
+  </p>
+
+</div>
+
+<script type="module">
+// =====================================================================
+// Intel HEX parser
+// =====================================================================
+function parseIntelHex(text) {
+  const lines = text.split(/\r?\n/).filter(l => l.trim().startsWith(':'));
+  let segments = []; // {addr, data: Uint8Array}
+  let extLinearAddr = 0;
+  let extSegmentAddr = 0;
+  let currentAddr = null;
+  let currentBytes = [];
+
+  function flush() {
+    if (currentBytes.length > 0) {
+      segments.push({ addr: currentAddr, data: new Uint8Array(currentBytes) });
+    }
+    currentBytes = [];
+    currentAddr = null;
+  }
+
+  for (const line of lines) {
+    const byteCount = parseInt(line.substr(1, 2), 16);
+    const address = parseInt(line.substr(3, 4), 16);
+    const recordType = parseInt(line.substr(7, 2), 16);
+    const dataHex = line.substr(9, byteCount * 2);
+
+    if (recordType === 0x00) {
+      const fullAddr = extLinearAddr + extSegmentAddr + address;
+      const bytes = [];
+      for (let i = 0; i < dataHex.length; i += 2) bytes.push(parseInt(dataHex.substr(i, 2), 16));
+
+      if (currentAddr === null) {
+        currentAddr = fullAddr;
+        currentBytes = bytes;
+      } else if (fullAddr === currentAddr + currentBytes.length) {
+        currentBytes = currentBytes.concat(bytes);
+      } else {
+        flush();
+        currentAddr = fullAddr;
+        currentBytes = bytes;
+      }
+    } else if (recordType === 0x01) {
+      flush();
+      break;
+    } else if (recordType === 0x02) {
+      flush();
+      extSegmentAddr = parseInt(dataHex, 16) * 16;
+    } else if (recordType === 0x04) {
+      flush();
+      extLinearAddr = parseInt(dataHex, 16) << 16;
+    }
+  }
+  flush();
+  return segments; // เรียงตามลำดับที่เจอ (ปกติไฟล์ .hex ของ Arduino เรียงต่อเนื่องอยู่แล้ว)
+}
+
+function segmentsToFlashImage(segments) {
+  // รวมทุก segment เป็นภาพ flash เดียว โดยเติม 0xFF ในช่องว่างระหว่าง segment (ค่า erase ของ AVR flash)
+  if (segments.length === 0) return { base: 0, data: new Uint8Array(0) };
+  const base = Math.min(...segments.map(s => s.addr));
+  const end = Math.max(...segments.map(s => s.addr + s.data.length));
+  const image = new Uint8Array(end - base).fill(0xFF);
+  for (const seg of segments) {
+    image.set(seg.data, seg.addr - base);
+  }
+  return { base, data: image };
+}
+
+// =====================================================================
+// Board profiles
+// =====================================================================
+const BOARD_PROFILES = {
+  uno328p_115200: { protocol: 'v1', baud: 115200, pageSize: 128, flashSize: 32768, name: 'Uno/Nano (ใหม่)' },
+  uno328p_57600:  { protocol: 'v1', baud: 57600,  pageSize: 128, flashSize: 30720, name: 'Nano (เก่า)/Pro Mini' },
+  mega2560:       { protocol: 'v2', baud: 115200, pageSize: 256, flashSize: 262144, name: 'Mega2560' },
+};
+
+// =====================================================================
+// DOM refs
+// =====================================================================
+const $ = (id) => document.getElementById(id);
+const unsupportedBox = $('unsupportedBox');
+const btnConnect = $('btnConnect');
+const btnDisconnect = $('btnDisconnect');
+const btnFlash = $('btnFlash');
+const btnReset = $('btnReset');
+const btnClearLog = $('btnClearLog');
+const boardTypeSel = $('boardType');
+const fileInput = $('fileHex');
+const statusDot = $('statusDot');
+const statusText = $('statusText');
+const terminalEl = $('terminal');
+const progressFill = $('progressFill');
+const progressLabel = $('progressLabel');
+const megaWarn = $('megaWarn');
+
+let port = null;
+let reader = null;
+let writer = null;
+let readBuffer = [];
+let readResolvers = [];
+let connected = false;
+let busy = false;
+
+if (!('serial' in navigator)) {
+  unsupportedBox.style.display = 'block';
+  unsupportedBox.innerHTML = '<strong>เบราว์เซอร์นี้ไม่รองรับ Web Serial API</strong><br>กรุณาเปิดด้วย Chrome หรือ Edge บนคอมพิวเตอร์';
+  btnConnect.disabled = true;
+}
+
+function logLine(text, isErr) {
+  const div = document.createElement('div');
+  if (isErr) div.className = 'err';
+  div.textContent = text;
+  terminalEl.appendChild(div);
+  terminalEl.scrollTop = terminalEl.scrollHeight;
+}
+btnClearLog.addEventListener('click', () => terminalEl.innerHTML = '');
+
+function setStatus(text, ok) {
+  statusText.textContent = text;
+  statusDot.classList.toggle('connected', !!ok);
+}
+
+function updateButtons() {
+  btnConnect.disabled = connected || busy || !('serial' in navigator);
+  btnDisconnect.disabled = !connected || busy;
+  btnFlash.disabled = !connected || busy || !fileInput.files[0];
+  btnReset.disabled = !connected || busy;
+  boardTypeSel.disabled = connected || busy;
+}
+fileInput.addEventListener('change', updateButtons);
+boardTypeSel.addEventListener('change', () => {
+  megaWarn.style.display = (boardTypeSel.value === 'mega2560') ? 'block' : 'none';
+});
+
+// =====================================================================
+// Serial read/write helpers (byte stream) — ใช้ ReadableStream reader ตัวเดียว อ่านสะสมใส่ buffer
+// =====================================================================
+let keepReading = false;
+let readableClosed = null;
+
+async function connectSerial(baud) {
+  port = await navigator.serial.requestPort({});
+  await port.open({ baudRate: baud });
+  writer = port.writable.getWriter();
+  readBuffer = [];
+  keepReading = true;
+  pumpReader();
+}
+
+async function pumpReader() {
+  reader = port.readable.getReader();
+  try {
+    while (keepReading) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      if (value) {
+        for (const b of value) readBuffer.push(b);
+        // ปลุกคนที่รออ่านอยู่
+        while (readResolvers.length > 0 && readBuffer.length > 0) {
+          readResolvers.shift()();
+        }
+      }
+    }
+  } catch (e) {
+    // การอ่านหยุดตอน disconnect เป็นเรื่องปกติ
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+function waitForByte(timeoutMs) {
+  return new Promise((resolve, reject) => {
+    if (readBuffer.length > 0) return resolve();
+    const timer = setTimeout(() => {
+      const idx = readResolvers.indexOf(onData);
+      if (idx >= 0) readResolvers.splice(idx, 1);
+      reject(new Error('timeout รออุปกรณ์ตอบกลับ'));
+    }, timeoutMs);
+    function onData() { clearTimeout(timer); resolve(); }
+    readResolvers.push(onData);
+  });
+}
+
+async function readBytes(n, timeoutMs = 2000) {
+  const out = [];
+  while (out.length < n) {
+    if (readBuffer.length === 0) await waitForByte(timeoutMs);
+    while (readBuffer.length > 0 && out.length < n) out.push(readBuffer.shift());
+  }
+  return out;
+}
+
+async function writeBytes(bytes) {
+  await writer.write(new Uint8Array(bytes));
+}
+
+function flushReadBuffer() { readBuffer = []; }
+
+async function disconnectSerial() {
+  keepReading = false;
+  try { if (reader) { await reader.cancel(); } } catch(e) {}
+  try { if (writer) { writer.releaseLock(); } } catch(e) {}
+  try { if (port) { await port.close(); } } catch(e) {}
+  port = null; writer = null; reader = null;
+}
+
+// ทริกเกอร์ auto-reset ผ่านวงจร DTR/RTS มาตรฐานของบอร์ด Arduino ทั่วไป
+async function pulseReset() {
+  await port.setSignals({ dataTerminalReady: false, requestToSend: true });
+  await new Promise(r => setTimeout(r, 100));
+  await port.setSignals({ dataTerminalReady: true, requestToSend: false });
+  await new Promise(r => setTimeout(r, 50));
+  await port.setSignals({ dataTerminalReady: false });
+  await new Promise(r => setTimeout(r, 250)); // รอ bootloader บูตขึ้นมาเริ่มฟังพอร์ต
+}
+
+// =====================================================================
+// STK500v1 (Uno / Nano / Pro Mini)
+// =====================================================================
+const V1 = {
+  Cmnd_STK_GET_SYNC: 0x30,
+  Cmnd_STK_ENTER_PROGMODE: 0x50,
+  Cmnd_STK_LEAVE_PROGMODE: 0x51,
+  Cmnd_STK_LOAD_ADDRESS: 0x55,
+  Cmnd_STK_PROG_PAGE: 0x64,
+  Sync_CRC_EOP: 0x20,
+  Resp_STK_INSYNC: 0x14,
+  Resp_STK_OK: 0x10,
+};
+
+async function v1Command(bytes, expectBytes = 0, timeoutMs = 1500) {
+  flushReadBuffer();
+  await writeBytes(bytes);
+  const inSync = (await readBytes(1, timeoutMs))[0];
+  if (inSync !== V1.Resp_STK_INSYNC) throw new Error('STK500v1: ไม่ได้ INSYNC (got 0x' + inSync.toString(16) + ')');
+  let extra = [];
+  if (expectBytes > 0) extra = await readBytes(expectBytes, timeoutMs);
+  const ok = (await readBytes(1, timeoutMs))[0];
+  if (ok !== V1.Resp_STK_OK) throw new Error('STK500v1: ไม่ได้ OK (got 0x' + ok.toString(16) + ')');
+  return extra;
+}
+
+async function v1Sync() {
+  let lastErr;
+  for (let i = 0; i < 10; i++) {
+    try {
+      flushReadBuffer();
+      await writeBytes([V1.Cmnd_STK_GET_SYNC, V1.Sync_CRC_EOP]);
+      const b1 = (await readBytes(1, 400))[0];
+      if (b1 === V1.Resp_STK_INSYNC) {
+        const b2 = (await readBytes(1, 400))[0];
+        if (b2 === V1.Resp_STK_OK) return;
+      }
+    } catch (e) { lastErr = e; }
+    await new Promise(r => setTimeout(r, 80));
+  }
+  throw new Error('STK500v1: sync ไม่สำเร็จ — ' + (lastErr ? lastErr.message : ''));
+}
+
+async function flashV1(profile, base, image, onProgress) {
+  logLine('กำลัง reset บอร์ดเข้า bootloader...');
+  await pulseReset();
+
+  logLine('กำลัง sync (STK_GET_SYNC)...');
+  await v1Sync();
+  logLine('✔ sync สำเร็จ');
+
+  await v1Command([V1.Cmnd_STK_ENTER_PROGMODE, V1.Sync_CRC_EOP]);
+  logLine('✔ เข้าโหมด programming แล้ว');
+
+  const pageSize = profile.pageSize;
+  let addr = base; // byte address
+  let offset = 0;
+  const total = image.length;
+
+  while (offset < total) {
+    const chunkLen = Math.min(pageSize, total - offset);
+    const chunk = image.slice(offset, offset + chunkLen);
+
+    const wordAddr = addr >> 1; // STK500v1 ใช้ word address
+    await v1Command([
+      V1.Cmnd_STK_LOAD_ADDRESS,
+      wordAddr & 0xFF, (wordAddr >> 8) & 0xFF,
+      V1.Sync_CRC_EOP,
+    ]);
+
+    const body = [
+      V1.Cmnd_STK_PROG_PAGE,
+      (chunkLen >> 8) & 0xFF, chunkLen & 0xFF,
+      0x46, // 'F' = flash memory
+      ...chunk,
+      V1.Sync_CRC_EOP,
+    ];
+    await v1Command(body, 0, 3000);
+
+    offset += chunkLen;
+    addr += chunkLen;
+    onProgress(offset, total);
+  }
+
+  await v1Command([V1.Cmnd_STK_LEAVE_PROGMODE, V1.Sync_CRC_EOP]);
+  logLine('✔ ออกจากโหมด programming แล้ว');
+}
+
+// =====================================================================
+// STK500v2 (Mega2560) — ทดลอง: ตาม AVR068 spec ทั่วไป
+// =====================================================================
+const V2 = {
+  MESSAGE_START: 0x1B,
+  TOKEN: 0x0E,
+  CMD_SIGN_ON: 0x01,
+  CMD_ENTER_PROGMODE_ISP: 0x10,
+  CMD_LEAVE_PROGMODE_ISP: 0x11,
+  CMD_LOAD_ADDRESS: 0x06,
+  CMD_PROGRAM_FLASH_ISP: 0x13,
+  STATUS_CMD_OK: 0x00,
+};
+
+let v2Seq = 0;
+
+function v2BuildPacket(seq, body) {
+  const size = body.length;
+  const packet = new Uint8Array(5 + size + 1);
+  packet[0] = V2.MESSAGE_START;
+  packet[1] = seq;
+  packet[2] = (size >> 8) & 0xFF;
+  packet[3] = size & 0xFF;
+  packet[4] = V2.TOKEN;
+  packet.set(body, 5);
+  let cs = 0;
+  for (let i = 0; i < 5 + size; i++) cs ^= packet[i];
+  packet[5 + size] = cs;
+  return packet;
+}
+
+async function v2ReadPacket(timeoutMs = 2000) {
+  // อ่านจนเจอ MESSAGE_START
+  let b;
+  do { b = (await readBytes(1, timeoutMs))[0]; } while (b !== V2.MESSAGE_START);
+  const seq = (await readBytes(1, timeoutMs))[0];
+  const sizeBytes = await readBytes(2, timeoutMs);
+  const size = (sizeBytes[0] << 8) | sizeBytes[1];
+  const token = (await readBytes(1, timeoutMs))[0];
+  const body = await readBytes(size, timeoutMs);
+  const cs = (await readBytes(1, timeoutMs))[0];
+  return { seq, size, token, body };
+}
+
+async function v2Command(bodyBytes, timeoutMs = 2000) {
+  const seq = v2Seq & 0xFF;
+  const packet = v2BuildPacket(seq, bodyBytes);
+  flushReadBuffer();
+  await writeBytes(packet);
+  const resp = await v2ReadPacket(timeoutMs);
+  v2Seq = (v2Seq + 1) & 0xFF;
+  if (resp.body[1] !== V2.STATUS_CMD_OK) {
+    throw new Error('STK500v2: คำสั่ง 0x' + bodyBytes[0].toString(16) + ' ตอบกลับ status 0x' + resp.body[1].toString(16));
+  }
+  return resp.body;
+}
+
+async function flashV2(profile, base, image, onProgress) {
+  logLine('กำลัง reset บอร์ดเข้า bootloader...');
+  await pulseReset();
+
+  logLine('กำลังส่ง CMD_SIGN_ON...');
+  v2Seq = 0;
+  let signedOn = false;
+  for (let i = 0; i < 5 && !signedOn; i++) {
+    try {
+      const resp = await v2Command([V2.CMD_SIGN_ON], 800);
+      signedOn = true;
+      logLine('✔ sign-on สำเร็จ');
+    } catch (e) {
+      await new Promise(r => setTimeout(r, 150));
+    }
+  }
+  if (!signedOn) throw new Error('STK500v2: sign-on ไม่สำเร็จ (ลองรีเซ็ตบอร์ดแล้วเชื่อมต่อใหม่)');
+
+  await v2Command([
+    V2.CMD_ENTER_PROGMODE_ISP,
+    0xC8, 0x64, 0x19, 0x20, 0x00, 0x53, 0x03,
+    0xAC, 0x53, 0x00, 0x00,
+  ]);
+  logLine('✔ เข้าโหมด programming แล้ว');
+
+  const pageSize = profile.pageSize;
+  let addr = base;
+  let offset = 0;
+  const total = image.length;
+
+  while (offset < total) {
+    const chunkLen = Math.min(pageSize, total - offset);
+    const chunk = image.slice(offset, offset + chunkLen);
+
+    const wordAddr = addr >> 1;
+    await v2Command([
+      V2.CMD_LOAD_ADDRESS,
+      (wordAddr >>> 24) & 0xFF, (wordAddr >>> 16) & 0xFF, (wordAddr >>> 8) & 0xFF, wordAddr & 0xFF,
+    ]);
+
+    await v2Command([
+      V2.CMD_PROGRAM_FLASH_ISP,
+      (chunkLen >> 8) & 0xFF, chunkLen & 0xFF,
+      0xC1, // mode: paged, ใช้ timer delay
+      0x0A, // delay (ms)
+      0x40, 0x4C, 0x20, // cmd1/2/3 (SPI load/write/read program memory page — ไม่ถูกใช้จริงบน bootloader self-program)
+      0xFF, 0xFF, // poll1/poll2
+      ...chunk,
+    ], 3000);
+
+    offset += chunkLen;
+    addr += chunkLen;
+    onProgress(offset, total);
+  }
+
+  await v2Command([V2.CMD_LEAVE_PROGMODE_ISP, 0x01, 0x01]);
+  logLine('✔ ออกจากโหมด programming แล้ว');
+}
+
+// =====================================================================
+// Connect / Disconnect
+// =====================================================================
+btnConnect.addEventListener('click', async () => {
+  const profile = BOARD_PROFILES[boardTypeSel.value];
+  try {
+    busy = true; updateButtons();
+    setStatus('กำลังขอสิทธิ์เข้าถึงพอร์ต...', false);
+    await connectSerial(profile.baud);
+    connected = true;
+    setStatus('เชื่อมต่อแล้ว — ' + profile.name + ' @ ' + profile.baud + ' baud', true);
+    logLine('✔ เปิดพอร์ตสำเร็จที่ ' + profile.baud + ' baud (ยังไม่ได้ sync กับ bootloader จนกว่าจะกด Flash)');
+  } catch (err) {
+    logLine('✖ เชื่อมต่อไม่สำเร็จ: ' + err.message, true);
+    setStatus('เชื่อมต่อไม่สำเร็จ', false);
+    connected = false;
+  } finally {
+    busy = false; updateButtons();
+  }
+});
+
+btnDisconnect.addEventListener('click', async () => {
+  busy = true; updateButtons();
+  await disconnectSerial();
+  connected = false;
+  setStatus('ยังไม่ได้เชื่อมต่อ', false);
+  busy = false; updateButtons();
+});
+
+btnReset.addEventListener('click', async () => {
+  try {
+    busy = true; updateButtons();
+    logLine('กำลังรีเซ็ตบอร์ด...');
+    await pulseReset();
+    logLine('✔ รีเซ็ตแล้ว');
+  } catch (err) {
+    logLine('✖ รีเซ็ตไม่สำเร็จ: ' + err.message, true);
+  } finally {
+    busy = false; updateButtons();
+  }
+});
+
+// =====================================================================
+// Flash
+// =====================================================================
+btnFlash.addEventListener('click', async () => {
+  const file = fileInput.files[0];
+  if (!file) return;
+  const profile = BOARD_PROFILES[boardTypeSel.value];
+
+  try {
+    busy = true; updateButtons();
+    logLine('--- อ่านไฟล์ ' + file.name + ' ---');
+    const text = await file.text();
+    const segments = parseIntelHex(text);
+    const { base, data } = segmentsToFlashImage(segments);
+
+    if (data.length === 0) throw new Error('อ่านไฟล์ .hex ไม่ได้ข้อมูล หรือไฟล์ไม่ถูกต้อง');
+    if (data.length > profile.flashSize) {
+      logLine('⚠ ขนาดไฟล์ (' + data.length + ' bytes) ใหญ่กว่าพื้นที่ flash ของบอร์ดนี้ (' + profile.flashSize + ' bytes) — อาจ flash ไม่ผ่าน', true);
+    }
+
+    logLine('ไฟล์ขนาด ' + data.length + ' bytes, เริ่มที่ address 0x' + base.toString(16));
+    progressFill.style.width = '0%';
+
+    const onProgress = (written, total) => {
+      const pct = Math.round((written/total)*100);
+      progressFill.style.width = pct + '%';
+      progressLabel.textContent = pct + '% (' + written + ' / ' + total + ' bytes)';
+    };
+
+    if (profile.protocol === 'v1') {
+      await flashV1(profile, base, data, onProgress);
+    } else {
+      await flashV2(profile, base, data, onProgress);
+    }
+
+    logLine('✔ Flash สำเร็จทั้งหมด! บอร์ดจะรันโปรแกรมใหม่โดยอัตโนมัติ');
+    progressLabel.textContent = 'เสร็จสมบูรณ์ ✔';
+  } catch (err) {
+    console.error(err);
+    logLine('✖ Flash ล้มเหลว: ' + err.message, true);
+    progressLabel.textContent = 'ล้มเหลว';
+  } finally {
+    busy = false; updateButtons();
+  }
+});
+
+boardTypeSel.dispatchEvent(new Event('change'));
+updateButtons();
+</script>
+
+</body>
+</html>
