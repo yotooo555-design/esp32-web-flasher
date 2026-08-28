@@ -167,14 +167,14 @@
     button.small { padding: 7px 10px; font-size: 12px; }
     label.field { width: 100%; margin-left: 0 !important; }
     label.field select { width: 100%; }
-    .row { gap: 8px; }
+    .row { gap: 8px; flex-direction: column; align-items: stretch; }
+    .row > button { width: 100%; }
     .status-line { flex-wrap: wrap; }
     table.files { min-width: 480px; }
     table.files input[type=file] { max-width: 140px; }
     table.files input[type=text] { width: 90px; }
     .presets span { width: 100%; margin-bottom: 4px; }
     #terminal { height: 200px; font-size: 11.5px; }
-    .row #btnFlash, .row #btnEraseOnly, .row #btnReset { flex: 1 1 auto; text-align: center; }
   }
 </style>
 </head>
@@ -197,6 +197,16 @@
     <div class="row">
       <button id="btnConnect" class="primary">เลือกพอร์ต &amp; เชื่อมต่อ</button>
       <button id="btnDisconnect" disabled>ตัดการเชื่อมต่อ</button>
+      <label class="field">
+        อุปกรณ์ (สำหรับ preset offset)
+        <select id="deviceType">
+          <option value="esp32" selected>ESP32 คลาสสิก / ESP32 CYD</option>
+          <option value="esp32s3">ESP32-S3</option>
+          <option value="esp32c3">ESP32-C3</option>
+          <option value="esp8266">ESP8266</option>
+          <option value="custom">อื่น ๆ / กำหนดเอง</option>
+        </select>
+      </label>
       <label class="field" style="margin-left:auto;">
         Baud rate
         <select id="baudrate">
@@ -207,6 +217,10 @@
         </select>
       </label>
     </div>
+    <p style="font-size:12px;color:var(--text-dim);margin:8px 0 0;">
+      ตัวเลือกนี้<strong>ไม่</strong>ส่งผลต่อการเชื่อมต่อจริง (esptool-js ตรวจจับชิปให้อัตโนมัติตอนเชื่อมต่ออยู่แล้ว)
+      ใช้แค่ปรับปุ่ม preset offset ในขั้นตอนที่ 2 ให้ตรงกับรุ่นบอร์ดของคุณ
+    </p>
     <div class="status-line" style="margin-top:12px;">
       <span id="statusDot" class="status-dot"></span>
       <span id="statusText">ยังไม่ได้เชื่อมต่อ</span>
@@ -234,13 +248,9 @@
       <button id="btnAddRow" class="small">+ เพิ่มไฟล์</button>
     </div>
 
-    <div class="presets">
-      <span style="font-size:12px;color:var(--text-dim);align-self:center;">Preset offset (ESP32 ทั่วไป):</span>
-      <button class="small ghost" data-preset="0x1000" data-label="bootloader.bin">bootloader @ 0x1000</button>
-      <button class="small ghost" data-preset="0x8000" data-label="partitions.bin">partitions @ 0x8000</button>
-      <button class="small ghost" data-preset="0xe000" data-label="boot_app0.bin">boot_app0 @ 0xe000</button>
-      <button class="small ghost" data-preset="0x10000" data-label="firmware.bin">firmware/app @ 0x10000</button>
-      <button class="small ghost" data-preset="0x0" data-label="merged.bin">merged.bin @ 0x0</button>
+    <div class="presets" id="presetsBox">
+      <span style="font-size:12px;color:var(--text-dim);align-self:center;">Preset offset:</span>
+      <!-- ปุ่มจะถูก render ด้วย JS ตามอุปกรณ์ที่เลือกด้านบน -->
     </div>
 
     <div class="checkbox-row" style="margin-top:14px;">
@@ -287,10 +297,12 @@ const btnReset = $('btnReset');
 const btnAddRow = $('btnAddRow');
 const btnClearLog = $('btnClearLog');
 const baudrateSel = $('baudrate');
+const deviceTypeSel = $('deviceType');
 const eraseAllChk = $('eraseAll');
 const statusDot = $('statusDot');
 const statusText = $('statusText');
 const fileRowsBody = $('fileRows');
+const presetsBox = $('presetsBox');
 const terminalEl = $('terminal');
 
 let device = null;
@@ -346,6 +358,7 @@ function updateButtons() {
   btnReset.disabled = !connected || busy;
   btnAddRow.disabled = busy;
   baudrateSel.disabled = connected || busy;
+  deviceTypeSel.disabled = busy;
 }
 
 // ---------- File rows ----------
@@ -376,11 +389,58 @@ function getRows() {
 
 btnAddRow.addEventListener('click', () => addFileRow());
 
-document.querySelectorAll('[data-preset]').forEach(btn => {
-  btn.addEventListener('click', () => {
-    addFileRow(btn.dataset.preset, btn.dataset.label);
+// ---------- Presets ต่ออุปกรณ์ ----------
+// หมายเหตุ: offset ของ bootloader ต่างกันระหว่าง ESP32 คลาสสิก (0x1000) กับ ESP32-S3/C3 (0x0)
+// ส่วน ESP8266 ปกติ Arduino/PlatformIO จะสร้างเป็นไฟล์เดียวรวมแล้ว flash ที่ 0x0
+const DEVICE_PRESETS = {
+  esp32: [
+    { offset: '0x1000',  label: 'bootloader.bin', name: 'bootloader @ 0x1000' },
+    { offset: '0x8000',  label: 'partitions.bin', name: 'partitions @ 0x8000' },
+    { offset: '0xe000',  label: 'boot_app0.bin',  name: 'boot_app0 @ 0xe000' },
+    { offset: '0x10000', label: 'firmware.bin',   name: 'firmware/app @ 0x10000' },
+    { offset: '0x0',     label: 'merged.bin',     name: 'merged.bin @ 0x0' },
+  ],
+  esp32s3: [
+    { offset: '0x0',     label: 'bootloader.bin', name: 'bootloader @ 0x0' },
+    { offset: '0x8000',  label: 'partitions.bin', name: 'partitions @ 0x8000' },
+    { offset: '0xe000',  label: 'boot_app0.bin',  name: 'boot_app0 @ 0xe000' },
+    { offset: '0x10000', label: 'firmware.bin',   name: 'firmware/app @ 0x10000' },
+    { offset: '0x0',     label: 'merged.bin',     name: 'merged.bin @ 0x0' },
+  ],
+  esp32c3: [
+    { offset: '0x0',     label: 'bootloader.bin', name: 'bootloader @ 0x0' },
+    { offset: '0x8000',  label: 'partitions.bin', name: 'partitions @ 0x8000' },
+    { offset: '0xe000',  label: 'boot_app0.bin',  name: 'boot_app0 @ 0xe000' },
+    { offset: '0x10000', label: 'firmware.bin',   name: 'firmware/app @ 0x10000' },
+    { offset: '0x0',     label: 'merged.bin',     name: 'merged.bin @ 0x0' },
+  ],
+  esp8266: [
+    { offset: '0x0',     label: 'firmware.bin',   name: 'firmware @ 0x0 (ไฟล์เดียวรวม)' },
+  ],
+  custom: [], // ไม่มี preset ให้ ผู้ใช้กำหนด offset เอง
+};
+
+function renderPresets() {
+  const list = DEVICE_PRESETS[deviceTypeSel.value] || [];
+  presetsBox.innerHTML = '<span style="font-size:12px;color:var(--text-dim);align-self:center;">Preset offset:</span>';
+  if (list.length === 0) {
+    const note = document.createElement('span');
+    note.style.cssText = 'font-size:12px;color:var(--text-dim);align-self:center;';
+    note.textContent = '(ไม่มี preset สำหรับตัวเลือกนี้ — กด "+ เพิ่มไฟล์" แล้วใส่ offset เอง)';
+    presetsBox.appendChild(note);
+    return;
+  }
+  list.forEach(p => {
+    const btn = document.createElement('button');
+    btn.className = 'small ghost';
+    btn.textContent = p.name;
+    btn.addEventListener('click', () => addFileRow(p.offset, p.label));
+    presetsBox.appendChild(btn);
   });
-});
+}
+
+deviceTypeSel.addEventListener('change', renderPresets);
+renderPresets();
 
 // เริ่มต้นด้วย 1 แถวว่าง ๆ ให้กรอกเอง
 addFileRow('0x10000');
