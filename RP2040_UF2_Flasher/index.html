@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RP2040 UF2 Flasher v1.0</title>
+<style>
+  :root {
+    --bg: #e6f2fb; --panel: #f6fbff; --panel-2: #dcecf9; --border: #b9d8ef;
+    --text: #1c2b3a; --text-dim: #4d6478;
+    --accent: #d4af37; --accent-dim: #a8842a;
+    --ok: #1a7f37; --err: #cf222e;
+    --mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; min-height: 100vh; }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 28px 18px 60px; }
+  header { margin-bottom: 22px; }
+  header .eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: .12em; color: #000; font-weight: 700; text-transform: uppercase; }
+  h1 { margin: 4px 0 6px; font-size: 26px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .gold-outline { color: var(--accent); -webkit-text-stroke: 0.6px #000; text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000; }
+  .version-tag { font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--accent); background: var(--panel); border: 1px solid var(--accent-dim); border-radius: 999px; padding: 3px 10px; }
+  header p { color: #000; margin: 0; font-size: 14px; }
+  .author-line { margin-top: 6px !important; font-size: 12.5px !important; font-weight: 600; color: var(--accent) !important; }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 18px; margin-bottom: 16px; }
+  .panel h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-dim); margin: 0 0 14px; font-weight: 600; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  button { font-family: inherit; font-size: 14px; font-weight: 600; border-radius: 7px; border: 1px solid var(--border); background: var(--panel-2); color: var(--text); padding: 10px 16px; cursor: pointer; transition: border-color .15s, background .15s; }
+  button:hover:not(:disabled) { border-color: var(--accent-dim); }
+  button:disabled { opacity: .4; cursor: not-allowed; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #1a0f00; }
+  button.primary:hover:not(:disabled) { background: #e6c25f; }
+  button.small { padding: 6px 10px; font-size: 12px; }
+  input[type=file] { font-family: var(--mono); font-size: 13px; color: var(--text-dim); }
+  .status-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--text-dim); display: inline-block; }
+  .status-dot.connected { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+  .status-line { display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 13px; color: var(--text-dim); flex-wrap: wrap; }
+  .progress-bar-bg { height: 10px; border-radius: 5px; background: var(--panel-2); overflow: hidden; margin-top: 10px; }
+  .progress-bar-fill { height: 100%; width: 0%; background: var(--accent); transition: width .15s; }
+  .board-info { font-family: var(--mono); font-size: 12px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin-top: 10px; white-space: pre-wrap; color: var(--text-dim); }
+  #terminal { background: #05070a; border: 1px solid var(--border); border-radius: 8px; font-family: var(--mono); font-size: 12.5px; line-height: 1.5; padding: 12px; height: 220px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; color: #b6f0c1; }
+  #terminal .err { color: var(--err); }
+  .footer-note { color: #000; font-size: 12px; margin-top: 18px; line-height: 1.6; }
+  .footer-note a { color: var(--accent-dim); font-weight: 700; text-decoration: underline; }
+  .unsupported { background: #fdf2f1; border: 1px solid #e5b3ae; color: #9a2f28; padding: 14px 16px; border-radius: 8px; font-size: 14px; margin-bottom: 16px; }
+  ol.steps { margin: 0; padding-left: 20px; font-size: 13.5px; line-height: 1.7; color: var(--text); }
+  @media (max-width: 640px) {
+    .wrap { padding: 18px 12px 40px; }
+    h1 { font-size: 21px; }
+    .panel { padding: 14px; }
+    .row { flex-direction: column; align-items: stretch; }
+    .row > button { width: 100%; }
+    #terminal { height: 180px; font-size: 11.5px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">FILE SYSTEM ACCESS API &middot; BROWSER-ONLY FLASHER</div>
+    <h1><span class="gold-outline">RP2040 UF2 Flasher</span> <span class="version-tag">v1.0</span></h1>
+    <p>เขียนไฟล์ .uf2 ให้ Raspberry Pi Pico / Pico W / บอร์ดตระกูล RP2040 ผ่าน USB ตรงจากเบราว์เซอร์</p>
+    <p class="author-line">พัฒนาโดย Thanee Kongkrapun</p>
+  </header>
+
+  <div id="unsupportedBox" class="unsupported" style="display:none;"></div>
+
+  <div class="panel">
+    <h2>1. เข้าโหมด BOOTSEL</h2>
+    <ol class="steps">
+      <li>ถอดสาย USB ของบอร์ด Pico ออกก่อน</li>
+      <li>กดปุ่ม <strong>BOOTSEL</strong> ค้างไว้ แล้วเสียบสาย USB เข้าเครื่อง (หรือถ้าบอร์ดมีปุ่ม RESET แยก ให้กด BOOTSEL ค้างแล้วกด RESET แทน)</li>
+      <li>ปล่อยปุ่ม BOOTSEL — บอร์ดจะไปโผล่เป็นไดรฟ์ USB ชื่อ <strong>RPI-RP2</strong> ในเครื่อง (เหมือนแฟลชไดรฟ์)</li>
+    </ol>
+  </div>
+
+  <div class="panel">
+    <h2>2. เลือกไดรฟ์ RPI-RP2</h2>
+    <div class="row">
+      <button id="btnPickDrive" class="primary">เลือกไดรฟ์ RPI-RP2</button>
+    </div>
+    <div class="status-line" style="margin-top:12px;">
+      <span id="statusDot" class="status-dot"></span>
+      <span id="statusText">ยังไม่ได้เลือกไดรฟ์</span>
+    </div>
+    <div id="boardInfo" class="board-info" style="display:none;"></div>
+  </div>
+
+  <div class="panel">
+    <h2>3. เลือกไฟล์ .uf2 แล้วเขียนลงบอร์ด</h2>
+    <div class="row">
+      <input type="file" id="fileUf2" accept=".uf2" />
+    </div>
+    <div class="row" style="margin-top:14px;">
+      <button id="btnFlash" class="primary" disabled>เขียนไฟล์ลงบอร์ด</button>
+    </div>
+    <div class="progress-bar-bg"><div id="progressFill" class="progress-bar-fill"></div></div>
+    <div id="progressLabel" style="font-size:12px;color:var(--text-dim);margin-top:6px;"></div>
+  </div>
+
+  <div class="panel">
+    <h2>4. Log</h2>
+    <div id="terminal"></div>
+    <div class="row" style="margin-top:10px;">
+      <button id="btnClearLog" class="small">ล้าง log</button>
+    </div>
+  </div>
+
+  <p class="footer-note">
+    RP2040 UF2 Flasher v1.0 &middot; พัฒนาโดย Thanee Kongkrapun<br>
+    ใช้ <a href="https://developer.mozilla.org/en-US/docs/Web/API/File_System_API" target="_blank" rel="noopener">File System Access API</a> ของเบราว์เซอร์ล้วน ๆ
+    ไม่มีการอัปโหลดไฟล์ .uf2 ไปเซิร์ฟเวอร์ใด ๆ ทุกอย่างเกิดขึ้นในเครื่องนี้เท่านั้น หน้านี้ต้องเปิดผ่าน
+    <strong>https://</strong> (หรือ localhost) และใช้ <strong>Chrome / Edge บนคอมพิวเตอร์</strong> เท่านั้น
+    (Firefox, Safari และเบราว์เซอร์บนมือถือยังไม่รองรับ API นี้)
+  </p>
+
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const unsupportedBox = $('unsupportedBox');
+const btnPickDrive = $('btnPickDrive');
+const btnFlash = $('btnFlash');
+const btnClearLog = $('btnClearLog');
+const fileInput = $('fileUf2');
+const statusDot = $('statusDot');
+const statusText = $('statusText');
+const boardInfo = $('boardInfo');
+const terminalEl = $('terminal');
+const progressFill = $('progressFill');
+const progressLabel = $('progressLabel');
+
+let dirHandle = null;
+
+function logLine(text, isErr) {
+  const div = document.createElement('div');
+  if (isErr) div.className = 'err';
+  div.textContent = text;
+  terminalEl.appendChild(div);
+  terminalEl.scrollTop = terminalEl.scrollHeight;
+}
+btnClearLog.addEventListener('click', () => terminalEl.innerHTML = '');
+
+if (!('showDirectoryPicker' in window)) {
+  unsupportedBox.style.display = 'block';
+  unsupportedBox.innerHTML = '<strong>เบราว์เซอร์นี้ไม่รองรับ File System Access API</strong><br>' +
+    'กรุณาเปิดด้วย Google Chrome หรือ Microsoft Edge เวอร์ชันล่าสุดบนคอมพิวเตอร์';
+  btnPickDrive.disabled = true;
+}
+
+function setStatus(text, ok) {
+  statusText.textContent = text;
+  statusDot.classList.toggle('connected', !!ok);
+}
+
+function updateFlashBtn() {
+  btnFlash.disabled = !dirHandle || !fileInput.files[0];
+}
+fileInput.addEventListener('change', updateFlashBtn);
+
+btnPickDrive.addEventListener('click', async () => {
+  try {
+    dirHandle = await window.showDirectoryPicker({ id: 'rp2040', mode: 'readwrite' });
+    logLine('เลือกโฟลเดอร์: ' + dirHandle.name);
+
+    // ตรวจสอบว่าเป็นไดรฟ์ RPI-RP2 จริงไหม โดยหาไฟล์ INFO_UF2.TXT
+    try {
+      const infoHandle = await dirHandle.getFileHandle('INFO_UF2.TXT');
+      const infoFile = await infoHandle.getFile();
+      const infoText = await infoFile.text();
+      boardInfo.style.display = 'block';
+      boardInfo.textContent = infoText.trim();
+      setStatus('พบไดรฟ์ RP2040 (BOOTSEL mode) — พร้อมเขียนไฟล์', true);
+      logLine('✔ ยืนยันแล้วว่าเป็นไดรฟ์ RP2040 ในโหมด BOOTSEL');
+    } catch (e) {
+      boardInfo.style.display = 'none';
+      setStatus('เลือกโฟลเดอร์แล้ว แต่ไม่พบ INFO_UF2.TXT — เช็คว่าเลือกไดรฟ์ RPI-RP2 ถูกต้องหรือไม่', false);
+      logLine('⚠ ไม่พบ INFO_UF2.TXT ในโฟลเดอร์ที่เลือก — อาจไม่ใช่ไดรฟ์ RP2040 หรือบอร์ดไม่ได้อยู่ในโหมด BOOTSEL', true);
+    }
+  } catch (err) {
+    if (err.name !== 'AbortError') {
+      logLine('✖ เลือกโฟลเดอร์ไม่สำเร็จ: ' + err.message, true);
+    }
+  } finally {
+    updateFlashBtn();
+  }
+});
+
+btnFlash.addEventListener('click', async () => {
+  const file = fileInput.files[0];
+  if (!file || !dirHandle) return;
+
+  try {
+    btnFlash.disabled = true;
+    logLine('--- เริ่มเขียนไฟล์ ' + file.name + ' (' + (file.size/1024).toFixed(1) + ' KB) ---');
+    progressFill.style.width = '0%';
+    progressLabel.textContent = 'กำลังเปิดไฟล์ปลายทาง...';
+
+    const targetHandle = await dirHandle.getFileHandle(file.name, { create: true });
+    const writable = await targetHandle.createWritable();
+
+    const buffer = await file.arrayBuffer();
+    const total = buffer.byteLength;
+    const chunkSize = 512 * 1024; // เขียนทีละ 512KB เพื่อโชว์ progress
+    let written = 0;
+
+    while (written < total) {
+      const end = Math.min(written + chunkSize, total);
+      const chunk = buffer.slice(written, end);
+      await writable.write({ type: 'write', position: written, data: chunk });
+      written = end;
+      const pct = Math.round((written / total) * 100);
+      progressFill.style.width = pct + '%';
+      progressLabel.textContent = pct + '% (' + (written/1024).toFixed(0) + ' / ' + (total/1024).toFixed(0) + ' KB)';
+    }
+
+    await writable.close();
+    logLine('✔ เขียนไฟล์สำเร็จ! บอร์ดจะรีบูตเข้าเฟิร์มแวร์ใหม่เองอัตโนมัติ (ไดรฟ์ RPI-RP2 จะหายไปจากเครื่อง)');
+    progressLabel.textContent = 'เสร็จสมบูรณ์ ✔';
+    setStatus('เขียนไฟล์สำเร็จ — รอบอร์ดรีบูต', true);
+  } catch (err) {
+    logLine('✖ เขียนไฟล์ไม่สำเร็จ: ' + err.message, true);
+    progressLabel.textContent = 'ล้มเหลว';
+  } finally {
+    updateFlashBtn();
+  }
+});
+</script>
+
+</body>
+</html>
