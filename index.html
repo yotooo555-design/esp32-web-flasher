@@ -284,7 +284,18 @@
 </div>
 
 <script type="module">
-import { ESPLoader, Transport } from "https://unpkg.com/esptool-js/lib/index.js?module";
+let ESPLoader, Transport;
+try {
+  ({ ESPLoader, Transport } = await import("https://unpkg.com/esptool-js@0.5.7/bundle.js"));
+} catch (err) {
+  const box = document.getElementById('unsupportedBox');
+  box.style.display = 'block';
+  box.innerHTML = '<strong>โหลดไลบรารี esptool-js ไม่สำเร็จ</strong><br>' +
+    'ลองเช็คอินเทอร์เน็ต หรือกด Ctrl+Shift+R เพื่อรีเฟรชแบบไม่ใช้ cache แล้วลองใหม่<br>' +
+    'รายละเอียด: ' + (err && err.message ? err.message : err);
+  document.getElementById('btnConnect').disabled = true;
+  throw err;
+}
 
 // ---------- DOM refs ----------
 const $ = (id) => document.getElementById(id);
