@@ -1,1 +1,104 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Thanee's Flasher Tools</title>
+<style>
+  :root {
+    --bg: #e6f2fb; --panel: #f6fbff; --panel-2: #dcecf9; --border: #b9d8ef;
+    --text: #1c2b3a; --text-dim: #4d6478;
+    --accent: #d4af37; --accent-dim: #a8842a;
+    --mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; min-height: 100vh; }
+  .wrap { max-width: 780px; margin: 0 auto; padding: 40px 18px 60px; }
+  header { margin-bottom: 30px; text-align: center; }
+  header .eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: .12em; color: #000; font-weight: 700; text-transform: uppercase; }
+  h1 { margin: 6px 0 8px; font-size: 30px; }
+  .gold-outline { color: var(--accent); -webkit-text-stroke: 0.6px #000; text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000; }
+  header p { color: #000; margin: 0; font-size: 14.5px; }
+  .author-line { margin-top: 8px !important; font-size: 13px !important; font-weight: 600; color: var(--accent) !important; }
 
+  .cards { display: flex; flex-direction: column; gap: 16px; margin-top: 30px; }
+  a.card {
+    display: flex; align-items: center; gap: 16px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 20px 22px; text-decoration: none; color: var(--text);
+    transition: border-color .15s, transform .1s, box-shadow .15s;
+  }
+  a.card:hover { border-color: var(--accent-dim); transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,0.08); }
+  .card-icon {
+    width: 52px; height: 52px; border-radius: 10px; background: var(--panel-2);
+    display: flex; align-items: center; justify-content: center; font-size: 26px; flex-shrink: 0;
+  }
+  .card-text { flex: 1; }
+  .card-title { font-size: 17px; font-weight: 700; margin: 0 0 4px; display: flex; align-items: center; gap: 8px; }
+  .card-badge {
+    font-family: var(--mono); font-size: 10.5px; font-weight: 700; color: var(--accent-dim);
+    background: var(--panel-2); border: 1px solid var(--border); border-radius: 999px; padding: 2px 8px;
+  }
+  .card-desc { font-size: 13px; color: var(--text-dim); margin: 0; line-height: 1.5; }
+  .card-arrow { font-size: 20px; color: var(--accent-dim); flex-shrink: 0; }
+
+  .footer-note { color: #000; font-size: 12px; margin-top: 34px; line-height: 1.6; text-align: center; }
+  .footer-note a { color: var(--accent-dim); font-weight: 700; text-decoration: underline; }
+
+  @media (max-width: 480px) {
+    h1 { font-size: 23px; }
+    a.card { flex-wrap: wrap; padding: 16px; }
+    .card-icon { width: 44px; height: 44px; font-size: 21px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">WEBSERIAL &middot; WEB-BASED FLASHERS</div>
+    <h1><span class="gold-outline">Thanee's Flasher Tools</span></h1>
+    <p>เว็บทูล flash เฟิร์มแวร์ผ่านเบราว์เซอร์ ไม่ต้องลงโปรแกรมเพิ่ม เลือกทูลที่ตรงกับบอร์ดของคุณ</p>
+    <p class="author-line">พัฒนาโดย Thanee Kongkrapun</p>
+  </header>
+
+  <div class="cards">
+
+    <a class="card" href="./ESP32_Web_Flasher/">
+      <div class="card-icon">📡</div>
+      <div class="card-text">
+        <div class="card-title">ESP32 Web Flasher <span class="card-badge">v1.1</span></div>
+        <p class="card-desc">ESP32 / ESP32-S3 / ESP32-C3 / ESP8266 / CYD — flash ไฟล์ .bin ผ่าน esptool-js</p>
+      </div>
+      <div class="card-arrow">→</div>
+    </a>
+
+    <a class="card" href="./RP2040_UF2_Flasher/">
+      <div class="card-icon">💾</div>
+      <div class="card-text">
+        <div class="card-title">RP2040 UF2 Flasher <span class="card-badge">v1.0</span></div>
+        <p class="card-desc">Raspberry Pi Pico / Pico W — ลากไฟล์ .uf2 ไปวางในโหมด BOOTSEL อัตโนมัติ</p>
+      </div>
+      <div class="card-arrow">→</div>
+    </a>
+
+    <a class="card" href="./Arduino_AVR_Web_Flasher/">
+      <div class="card-icon">🔌</div>
+      <div class="card-text">
+        <div class="card-title">Arduino AVR Web Flasher <span class="card-badge">v1.0</span></div>
+        <p class="card-desc">Uno / Nano / Pro Mini / Mega2560 — flash ไฟล์ .hex ผ่าน STK500 protocol</p>
+      </div>
+      <div class="card-arrow">→</div>
+    </a>
+
+  </div>
+
+  <p class="footer-note">
+    ทุกทูลทำงานในเบราว์เซอร์ล้วน ๆ ไม่มีการอัปโหลดไฟล์เฟิร์มแวร์ไปเซิร์ฟเวอร์ใด ๆ<br>
+    ต้องใช้ <strong>Chrome หรือ Edge บนคอมพิวเตอร์</strong> เท่านั้น &middot;
+    <a href="https://github.com/yotooo555-design/esp32-web-flasher" target="_blank" rel="noopener">ดูซอร์สโค้ดบน GitHub</a>
+  </p>
+
+</div>
+</body>
+</html>
